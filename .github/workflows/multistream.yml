@@ -4,6 +4,10 @@ on:
     - cron: '*/5 * * * *' # Automatically checks every 5 minutes
   workflow_dispatch:      # Allows you to start it manually from your phone/GitHub
 
+concurrency:
+  group: multistream-relay
+  cancel-in-progress: true
+
 jobs:
   restream:
     runs-on: ubuntu-latest
