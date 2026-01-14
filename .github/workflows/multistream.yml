@@ -1,12 +1,13 @@
 name: Auto Multistream Sync
 on:
   schedule:
-    - cron: '*/5 * * * *' # Checks every 5 minutes
-  workflow_dispatch:      # Allows you to start it manually for testing
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
+# This stops a second relay from starting if one is already running
 concurrency:
   group: multistream-relay
-  cancel-in-progress: true
+  cancel-in-progress: false 
 
 jobs:
   relay:
@@ -18,23 +19,18 @@ jobs:
       - name: Check Twitch Status
         id: check_live
         run: |
-          # Grabbing the page and checking for live status
           CONTENT=$(curl -s https://www.twitch.tv/werewolf3788)
           if [[ "$CONTENT" == *"isLiveBroadcast\":true"* ]]; then
             echo "STATUS=LIVE" >> $GITHUB_ENV
-            echo "werewolf3788 is LIVE. Starting relay..."
           else
-            echo "STATUS=OFFLINE" >> $GITHUB_ENV
-            echo "werewolf3788 is OFFLINE. Ending job."
+            echo "werewolf3788 is OFFLINE."
             exit 0
           fi
 
       - name: Multistream Relay
         if: env.STATUS == 'LIVE'
         run: |
-          # Hard timeout at 2h 59m (10740s)
-          # Note: We use the Twitch ingest URL. 
-          # Ensure you are ALREADY live on Twitch before this starts.
+          # The -re flag is important for cloud stability
           timeout 10740s ffmpeg -re -i "rtmp://mia05.contribute.live-video.net/app/${{ secrets.TWITCH_KEY }}" \
             -c copy -f flv "${{ secrets.RESTREAM_URL }}/${{ secrets.RESTREAM_KEY }}" \
             -c copy -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_KEY }}" \
