@@ -1,30 +1,33 @@
 name: Auto Multistream Sync
 on:
   schedule:
-    - cron: '*/5 * * * *' # Checks every 5 minutes if you are live
-  workflow_dispatch:      # Allows you to start it manually for testing
+    - cron: '*/5 * * * *' # Automatically checks every 5 minutes
+  workflow_dispatch:      # Allows you to start it manually from your phone/GitHub
 
 jobs:
-  relay:
+  restream:
     runs-on: ubuntu-latest
     steps:
       - name: Install FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Check Twitch Live Status
-        id: check
+      - name: Check if werewolf3788 is Live
+        id: check_live
         run: |
-          # Replace 'YOUR_TWITCH_USERNAME' with your actual Twitch name (lower case)
-          STATUS=$(curl -s https://www.twitch.tv/YOUR_TWITCH_USERNAME | grep -o '"isLiveBroadcast":true' || true)
-          if [ -z "$STATUS" ]; then
-            echo "Twitch is currently offline. Exiting."
+          # Grabbing your Twitch page and looking for the live signal
+          # If "isLiveBroadcast" is missing or the page says "offline", we stop.
+          CONTENT=$(curl -s https://www.twitch.tv/werewolf3788)
+          if [[ "$CONTENT" == *"isLiveBroadcast\":true"* ]]; then
+            echo "werewolf3788 is LIVE. Starting relay..."
+          else
+            echo "werewolf3788 is OFFLINE. Ending job."
             exit 0
           fi
 
-      - name: Multistream Relay
+      - name: Cloud Relay to All Platforms
         run: |
-          # timeout 10740s = 2 hours and 59 minutes
-          # -c copy ensures 0% CPU usage (no lag)
+          # Hard limit: 10740 seconds = 2 hours and 59 minutes
+          # Uses Florida-specific ingest (mia05) for the lowest latency
           timeout 10740s ffmpeg -i "rtmp://mia05.contribute.live-video.net/app/${{ secrets.TWITCH_KEY }}" \
             -c copy -f flv "${{ secrets.RESTREAM_URL }}/${{ secrets.RESTREAM_KEY }}" \
             -c copy -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_KEY }}" \
