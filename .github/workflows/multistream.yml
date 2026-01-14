@@ -1,1 +1,32 @@
+name: Auto Multistream Sync
+on:
+  schedule:
+    - cron: '*/5 * * * *' # Checks every 5 minutes if you are live
+  workflow_dispatch:      # Allows you to start it manually from GitHub
 
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Check Twitch Live Status
+        id: check
+        run: |
+          # Replace 'YOUR_TWITCH_USERNAME' with your actual Twitch name
+          STATUS=$(curl -s https://www.twitch.tv/YOUR_TWITCH_USERNAME | grep -o '"isLiveBroadcast":true' || true)
+          if [ -z "$STATUS" ]; then
+            echo "Twitch is currently offline. Exiting workflow."
+            exit 0
+          fi
+
+      - name: Multistream Relay
+        run: |
+          # Hard timeout at 10740 seconds (2 hours, 59 minutes)
+          timeout 10740s ffmpeg -i "rtmp://iad05.contribute.live-video.net/app/${{ secrets.TWITCH_KEY }}" \
+            -c:v copy -c:a copy -f flv "${{ secrets.RESTREAM_URL }}/${{ secrets.RESTREAM_KEY }}" \
+            -c:v copy -c:a copy -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YOUTUBE_KEY }}" \
+            -c:v copy -c:a copy -f flv "rtmp://fa637.kick.com/app/${{ secrets.KICK_KEY }}" \
+            -c:v copy -c:a copy -f flv "rtmp://live.trovo.live/live/${{ secrets.TROVO_KEY }}" \
+            -c:v copy -c:a copy -f flv "rtmps://live-api-s.facebook.com:443/rtmp/${{ secrets.FACEBOOK_KEY }}"
